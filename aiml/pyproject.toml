@@ -11,5 +11,7 @@ dependencies = [
     "google-genai>=1.56.0",
     "numpy>=2.4.0",
     "pandas>=2.3.3",
+    "pymupdf>=1.26.7",
     "python-dotenv>=1.2.1",
+    "tqdm>=4.67.1",
 ]
