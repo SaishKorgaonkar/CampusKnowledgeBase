@@ -1,7 +1,6 @@
 import json
 import faiss
-import numpy as np
-from typing import Any, List, Dict
+from typing import List, Dict
 from embedder import Embedder
 
 

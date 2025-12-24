@@ -4,8 +4,6 @@ import os
 from tqdm import tqdm
 from pathlib import Path
 import re
-import os
-from pathlib import Path
 
 script_directory = Path(__file__).resolve().parent
 os.chdir(script_directory)
