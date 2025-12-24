@@ -234,9 +234,13 @@ def main():
         if not year_dir.is_dir():
             continue
 
+        year_name = year_dir.name  # e.g., "FY", "SY", "TY"
+
         for sem_dir in year_dir.iterdir():
             if not sem_dir.is_dir():
                 continue
+
+            sem_name = sem_dir.name  # e.g., "Sem-1", "Sem-2"
 
             for subject_dir in sem_dir.iterdir():
                 if not subject_dir.is_dir():
@@ -249,6 +253,10 @@ def main():
                 else:
                     print(f"⚠️ Missing metadata.json in {subject_dir}")
                     folder_meta = {}
+
+                # Add year and semester info to metadata
+                folder_meta["year"] = year_name
+                folder_meta["semester_folder"] = sem_name
 
                 subject_name = folder_meta.get("subject", subject_dir.name)
                 print(f"\n📂 Subject: {subject_name}")

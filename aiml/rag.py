@@ -30,7 +30,7 @@ class Retriever:
         except Exception as e:
             print(f"Chunks file not found at {self.chunks_path}: {e}")
 
-    def retrieve(self, query: str, top_k: int = 3) -> List[Dict]:
+    def retrieve(self, query: str, top_k: int = 3, semester: str = None) -> List[Dict]:
         # If index or chunks are not available, return empty list and log
         if self.index is None:
             print("Cannot retrieve: FAISS index not loaded.")
@@ -39,8 +39,17 @@ class Retriever:
             print("Cannot retrieve: chunks metadata not loaded.")
             return []
 
+        # Extract semester number from format like "FY-Sem-1" -> "1"
+        semester_number = None
+        if semester:
+            parts = semester.split("-")
+            if len(parts) >= 2:
+                semester_number = parts[-1]  # Get "1" from "Sem-1"
+
         q_vec = self.embedder.embed_text(query).reshape(1, -1)
-        distances, indices = self.index.search(q_vec, top_k)
+        # Search more results initially to allow for filtering
+        search_k = top_k * 3 if semester_number else top_k
+        distances, indices = self.index.search(q_vec, search_k)
 
         results: List[Dict] = []
         for idx in indices[0]:
@@ -49,6 +58,19 @@ class Retriever:
             # guard against out-of-range indices
             if idx < 0 or idx >= len(self.chunks):
                 continue
-            results.append(self.chunks[idx])
+            
+            chunk = self.chunks[idx]
+            
+            # Filter by semester if specified
+            if semester_number:
+                chunk_semester = chunk.get("semester", "")
+                if str(chunk_semester) != semester_number:
+                    continue
+            
+            results.append(chunk)
+            
+            # Stop once we have enough results
+            if len(results) >= top_k:
+                break
 
         return results

@@ -55,11 +55,12 @@ def create_app():
         
         data = request.get_json()
         question = data.get("question", "")
+        semester = data.get("semester", "FY-Sem-1")  # Default to FY-Sem-1
 
         if not question:
             return jsonify({"error": "Question is required"}), 400
 
-        result = qa_service.ask(question)
+        result = qa_service.ask(question, semester=semester)
         return jsonify(result)
     
     @app.route("/auth-test", methods=["GET"])

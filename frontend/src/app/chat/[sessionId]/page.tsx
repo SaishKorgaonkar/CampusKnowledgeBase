@@ -7,11 +7,13 @@ import ChatWindow from '@/components/chat/ChatWindow';
 import PDFViewerPanel from '@/components/chat/PDFViewerPanel';
 import { Session, Message, Source } from '@/types/chat';
 import { mockSessions } from '@/lib/mockData';
+import { useSemester } from '@/contexts/SemesterContext';
 
 export default function ChatSessionPage() {
   const params = useParams();
   const router = useRouter();
   const sessionId = params.sessionId as string;
+  const { semester } = useSemester();
 
   const [sessions, setSessions] = useState<Session[]>(mockSessions);
   const [messages, setMessages] = useState<{ [key: string]: Message[] }>({});
@@ -49,6 +51,13 @@ export default function ChatSessionPage() {
       content,
       timestamp: new Date()
     };
+
+    // TODO: Real API call would be:
+    // fetch('/api/ask', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ question: content, semester })
+    // })
 
     // Simulate AI response with sources
     const aiMessage: Message = {

@@ -8,8 +8,8 @@ class QAService:
         self.retriever = retriever
         self.model_name = model_name
 
-    def ask(self, question: str) -> Dict:
-        retrieved_chunks = self.retriever.retrieve(question)
+    def ask(self, question: str, semester: str = None) -> Dict:
+        retrieved_chunks = self.retriever.retrieve(question, semester=semester)
 
         context = "\n\n".join(f"- {c['text']}" for c in retrieved_chunks)
 
