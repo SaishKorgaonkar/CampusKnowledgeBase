@@ -5,8 +5,27 @@ from typing import List, Dict
 from embedder import Embedder
 
 
+def _load_jsonl(path: str) -> List[Dict]:
+    records: List[Dict] = []
+    with open(path, "r", encoding="utf-8") as f:
+        for line_num, line in enumerate(f, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                records.append(json.loads(line))
+            except json.JSONDecodeError as e:
+                raise RuntimeError(f"Invalid JSONL in {path} at line {line_num}: {e}") from e
+    return records
+
+
 class Retriever:
-    def __init__(self, embedder: Embedder, index_path: str = "index/faiss.index", chunks_path: str = "data/chunks.json"):
+    def __init__(
+        self,
+        embedder: Embedder,
+        index_path: str = "ingestion/output/faiss.index",
+        chunks_path: str = "ingestion/output/chunks.jsonl",
+    ):
         self.embedder = embedder
         self.index_path = index_path
         self.chunks_path = chunks_path
@@ -25,8 +44,11 @@ class Retriever:
         try:
             if not os.path.exists(self.chunks_path):
                 raise FileNotFoundError(self.chunks_path)
-            with open(self.chunks_path) as f:
-                self.chunks = json.load(f)
+            if self.chunks_path.lower().endswith(".jsonl"):
+                self.chunks = _load_jsonl(self.chunks_path)
+            else:
+                with open(self.chunks_path, "r", encoding="utf-8") as f:
+                    self.chunks = json.load(f)
         except Exception as e:
             print(f"Chunks file not found at {self.chunks_path}: {e}")
 
