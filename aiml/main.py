@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from google import genai
+from google.api_core.exceptions import ResourceExhausted
 import os
 from dotenv import load_dotenv
 
@@ -38,6 +39,7 @@ def create_app():
 
     # Initialize Gemini client
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    print(type(client))
 
     # Instantiate services
     embedder = Embedder(client) # comment next 2 lines to test auth
