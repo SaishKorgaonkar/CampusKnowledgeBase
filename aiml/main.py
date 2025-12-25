@@ -57,12 +57,15 @@ def create_app():
         data = request.get_json()
         question = data.get("question", "")
         course = data.get("course", "FY") # Default to FY
-        semester = data.get("semester", "Sem-1")  # Default to FY-Sem-1
+        semester = data.get("semester", "1")  # Default to semester 1
 
         if not question:
             return jsonify({"error": "Question is required"}), 400
 
-        result = qa_service.ask(question, course=course, semester=semester)
+        # Combine course and semester for filtering: "COMPS-Sem-3"
+        full_semester = f"{course}-Sem-{semester}"
+
+        result = qa_service.ask(question, course=course, semester=full_semester)
         return jsonify(result)
     
     @app.route("/auth-test", methods=["GET"])

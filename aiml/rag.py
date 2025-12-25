@@ -61,16 +61,21 @@ class Retriever:
             print("Cannot retrieve: chunks metadata not loaded.")
             return []
 
-        # Extract semester number from format like "FY-Sem-1" -> "1"
+        # Extract course and semester from format like "COMPS-Sem-3" -> course="COMPS", semester_num="3"
+        course_filter = None
         semester_number = None
         if semester:
             parts = semester.split("-")
             if len(parts) >= 2:
-                semester_number = parts[-1]  # Get "1" from "Sem-1"
+                course_filter = parts[0]  # Get "COMPS" from "COMPS-Sem-3"
+                if len(parts) >= 3:
+                    semester_number = parts[2]  # Get "3" from "COMPS-Sem-3"
+                else:
+                    semester_number = parts[1].replace("Sem", "")  # Handle "FY-Sem-1" format
 
         q_vec = self.embedder.embed_text(query).reshape(1, -1)
         # Search more results initially to allow for filtering
-        search_k = top_k * 3 if semester_number else top_k
+        search_k = top_k * 5 if (course_filter or semester_number) else top_k
         distances, indices = self.index.search(q_vec, search_k)
 
         results: List[Dict] = []
@@ -82,6 +87,14 @@ class Retriever:
                 continue
             
             chunk = self.chunks[idx]
+            
+            # Filter by course if specified (for specialized courses like COMPS, IT, etc.)
+            # FY courses should match all since it's common first year
+            if course_filter and course_filter != "FY":
+                chunk_course = chunk.get("course", "")
+                # If chunk doesn't have course field or doesn't match, skip
+                if chunk_course and chunk_course != course_filter:
+                    continue
             
             # Filter by semester if specified
             if semester_number:

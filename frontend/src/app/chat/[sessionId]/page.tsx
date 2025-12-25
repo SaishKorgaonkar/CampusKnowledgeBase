@@ -13,7 +13,7 @@ export default function ChatSessionPage() {
   const params = useParams();
   const router = useRouter();
   const sessionId = params.sessionId as string;
-  const { semester } = useSemester();
+  const { course, semesterNumber } = useSemester();
 
   const [sessions, setSessions] = useState<Session[]>(mockSessions);
   const [messages, setMessages] = useState<{ [key: string]: Message[] }>({});
@@ -56,7 +56,7 @@ export default function ChatSessionPage() {
     // fetch('/api/ask', {
     //   method: 'POST',
     //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ question: content, semester })
+    //   body: JSON.stringify({ question: content, course, semester: semesterNumber })
     // })
 
     // Simulate AI response with sources

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Message, Source } from '@/types/chat';
 import ChatMessage from './ChatMessage';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useSemester, SEMESTERS } from '@/contexts/SemesterContext';
+import { useSemester, COURSES, SEMESTER_NUMBERS } from '@/contexts/SemesterContext';
 
 interface ChatWindowProps {
   subjectName: string;
@@ -17,7 +17,7 @@ export default function ChatWindow({ subjectName, messages, onSendMessage, onSou
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { theme, toggleTheme } = useTheme();
-  const { semester, setSemester } = useSemester();
+  const { course, semesterNumber, setCourse, setSemesterNumber } = useSemester();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -42,13 +42,34 @@ export default function ChatWindow({ subjectName, messages, onSendMessage, onSou
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-[var(--text-primary)]">{subjectName}</h2>
           <div className="flex items-center gap-3">
+            {/* Course Selector */}
             <div className="relative">
               <select
-                value={semester}
-                onChange={(e) => setSemester(e.target.value)}
+                value={course}
+                onChange={(e) => setCourse(e.target.value)}
                 className="appearance-none px-4 py-2 pr-10 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-primary)] text-sm font-medium hover:bg-[var(--accent-glow)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] transition-theme cursor-pointer"
               >
-                {SEMESTERS.map((sem) => (
+                {COURSES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+            
+            {/* Semester Number Selector */}
+            <div className="relative">
+              <select
+                value={semesterNumber}
+                onChange={(e) => setSemesterNumber(e.target.value)}
+                className="appearance-none px-4 py-2 pr-10 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-primary)] text-sm font-medium hover:bg-[var(--accent-glow)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] transition-theme cursor-pointer"
+              >
+                {SEMESTER_NUMBERS.map((sem) => (
                   <option key={sem.value} value={sem.value}>
                     {sem.label}
                   </option>
