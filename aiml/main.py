@@ -48,7 +48,6 @@ def create_app():
     @app.route("/ask", methods=["POST"])
     @jwt_required()
     def ask_route():
-        user = get_jwt_identity()
         role = get_jwt()['role']
 
         if role!="student":
@@ -57,15 +56,12 @@ def create_app():
         data = request.get_json()
         question = data.get("question", "")
         course = data.get("course", "FY") # Default to FY
-        semester = data.get("semester", "1")  # Default to semester 1
+        semester = data.get("semester", "Sem-1")  # Default to semester 1
 
         if not question:
             return jsonify({"error": "Question is required"}), 400
 
-        # Combine course and semester for filtering: "COMPS-Sem-3"
-        full_semester = f"{course}-Sem-{semester}"
-
-        result = qa_service.ask(question, course=course, semester=full_semester)
+        result = qa_service.ask(question, course=course, semester=semester)
         return jsonify(result)
     
     @app.route("/auth-test", methods=["GET"])

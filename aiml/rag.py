@@ -1,7 +1,9 @@
-import os
 import json
+from pathlib import Path
+from typing import List, Dict, Optional, Tuple
+
 import faiss
-from typing import List, Dict
+
 from embedder import Embedder
 
 
@@ -19,6 +21,41 @@ def _load_jsonl(path: str) -> List[Dict]:
     return records
 
 
+def _distance_to_relevance(distance: float) -> float:
+    # FAISS IndexFlatL2 returns squared L2 distance. Map to (0,1] with a simple monotonic transform.
+    # 0 -> 1.0, larger distance -> closer to 0.
+    if distance < 0:
+        distance = 0.0
+    return 1.0 / (1.0 + float(distance))
+
+
+def _repo_root() -> Path:
+    # aiml/rag.py -> aiml/ -> repo root
+    return Path(__file__).resolve().parent.parent
+
+
+def _candidate_paths(data_dir: Path, course: str, semester: str) -> Tuple[Path, Path]:
+    # Preferred: data/{course}/{semester}/{course}_{semester}_*.{index|jsonl}
+    # Provide a fallback variant where spaces in semester are replaced with '-' for filenames.
+    sem_for_filename = semester.replace(" ", "-")
+
+    folder = data_dir / course / semester
+
+    chunks_candidates = [
+        folder / f"{course}_{semester}_chunks.jsonl",
+        folder / f"{course}_{sem_for_filename}_chunks.jsonl",
+    ]
+
+    index_candidates = [
+        folder / f"{course}_{semester}_faiss.index",
+        folder / f"{course}_{sem_for_filename}_faiss.index",
+    ]
+
+    chunks_path = next((p for p in chunks_candidates if p.exists()), chunks_candidates[0])
+    index_path = next((p for p in index_candidates if p.exists()), index_candidates[0])
+    return index_path, chunks_path
+
+
 class Retriever:
     def __init__(
         self,
@@ -27,85 +64,76 @@ class Retriever:
         chunks_path: str = "ingestion/output/chunks.jsonl",
     ):
         self.embedder = embedder
-        self.index_path = index_path
-        self.chunks_path = chunks_path
-        self.index = None
-        self.chunks: List[Dict] = []
+        # Defaults/fallback when course+semester aren't provided
+        self.default_index_path = index_path
+        self.default_chunks_path = chunks_path
 
-        # Try to load FAISS index
+        # Cache loaded resources by (course, semester) or by resolved fallback paths
+        self._cache: dict[tuple, tuple] = {}
+
+    def _load_resources(self, course: Optional[str], semester: Optional[str]):
+        if course and semester:
+            data_dir = _repo_root() / "data"
+            index_path, chunks_path = _candidate_paths(data_dir, course, semester)
+            cache_key = ("data", str(index_path), str(chunks_path))
+        else:
+            index_path = _repo_root() / "aiml" / self.default_index_path
+            chunks_path = _repo_root() / "aiml" / self.default_chunks_path
+            cache_key = ("fallback", str(index_path), str(chunks_path))
+
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
+        index = None
+        chunks: List[Dict] = []
+
         try:
-            if not os.path.exists(self.index_path):
-                raise FileNotFoundError(self.index_path)
-            self.index = faiss.read_index(self.index_path)
+            if not index_path.exists():
+                raise FileNotFoundError(str(index_path))
+            index = faiss.read_index(str(index_path))
         except Exception as e:
-            print(f"FAISS index not found at {self.index_path}: {e}")
+            print(f"FAISS index not found at {index_path}: {e}")
 
-        # Try to load chunks metadata
         try:
-            if not os.path.exists(self.chunks_path):
-                raise FileNotFoundError(self.chunks_path)
-            if self.chunks_path.lower().endswith(".jsonl"):
-                self.chunks = _load_jsonl(self.chunks_path)
+            if not chunks_path.exists():
+                raise FileNotFoundError(str(chunks_path))
+            if str(chunks_path).lower().endswith(".jsonl"):
+                chunks = _load_jsonl(str(chunks_path))
             else:
-                with open(self.chunks_path, "r", encoding="utf-8") as f:
-                    self.chunks = json.load(f)
+                with open(chunks_path, "r", encoding="utf-8") as f:
+                    chunks = json.load(f)
         except Exception as e:
-            print(f"Chunks file not found at {self.chunks_path}: {e}")
+            print(f"Chunks file not found at {chunks_path}: {e}")
 
-    def retrieve(self, query: str, top_k: int = 3, semester: str = None) -> List[Dict]:
-        # If index or chunks are not available, return empty list and log
-        if self.index is None:
+        self._cache[cache_key] = (index, chunks)
+        return index, chunks
+
+    def retrieve(
+        self,
+        query: str,
+        top_k: int = 3,
+        course: Optional[str] = None,
+        semester: Optional[str] = None,
+    ) -> List[Dict]:
+        index, chunks = self._load_resources(course, semester)
+
+        if index is None:
             print("Cannot retrieve: FAISS index not loaded.")
             return []
-        if not self.chunks:
+        if not chunks:
             print("Cannot retrieve: chunks metadata not loaded.")
             return []
 
-        # Extract course and semester from format like "COMPS-Sem-3" -> course="COMPS", semester_num="3"
-        course_filter = None
-        semester_number = None
-        if semester:
-            parts = semester.split("-")
-            if len(parts) >= 2:
-                course_filter = parts[0]  # Get "COMPS" from "COMPS-Sem-3"
-                if len(parts) >= 3:
-                    semester_number = parts[2]  # Get "3" from "COMPS-Sem-3"
-                else:
-                    semester_number = parts[1].replace("Sem", "")  # Handle "FY-Sem-1" format
-
         q_vec = self.embedder.embed_text(query).reshape(1, -1)
-        # Search more results initially to allow for filtering
-        search_k = top_k * 5 if (course_filter or semester_number) else top_k
-        distances, indices = self.index.search(q_vec, search_k)
+        distances, indices = index.search(q_vec, top_k)
 
         results: List[Dict] = []
-        for idx in indices[0]:
+        for dist, idx in zip(distances[0], indices[0]):
             if idx == -1:
                 continue
-            # guard against out-of-range indices
-            if idx < 0 or idx >= len(self.chunks):
+            if idx < 0 or idx >= len(chunks):
                 continue
-            
-            chunk = self.chunks[idx]
-            
-            # Filter by course if specified (for specialized courses like COMPS, IT, etc.)
-            # FY courses should match all since it's common first year
-            if course_filter and course_filter != "FY":
-                chunk_course = chunk.get("course", "")
-                # If chunk doesn't have course field or doesn't match, skip
-                if chunk_course and chunk_course != course_filter:
-                    continue
-            
-            # Filter by semester if specified
-            if semester_number:
-                chunk_semester = chunk.get("semester", "")
-                if str(chunk_semester) != semester_number:
-                    continue
-            
-            results.append(chunk)
-            
-            # Stop once we have enough results
-            if len(results) >= top_k:
-                break
+            chunk = chunks[idx]
+            results.append({**chunk, "relevance": _distance_to_relevance(float(dist))})
 
         return results
