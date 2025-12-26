@@ -1,10 +1,10 @@
-import { Session } from '@/types/chat';
+import { Session } from "@/types/chat";
 
 export const mockSessions: Session[] = [
   {
-    id: '1',
-    subject: 'Data Structures & Algorithms',
+    id: "1",
+    subject: "New chat",
     messageCount: 0,
-    createdAt: new Date()
-  }
+    createdAt: new Date(),
+  },
 ];

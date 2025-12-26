@@ -38,14 +38,15 @@ export default function ChatSessionPage() {
     }
   }, [currentSession, sessions, router]);
 
-  const handleNewSession = (subject: string) => {
+  const handleNewSession = () => {
     const newSession: Session = {
-      id: (sessions.length + 1).toString(),
-      subject,
+      id: crypto.randomUUID(),
+      subject: "New chat",
       messageCount: 0,
       createdAt: new Date(),
     };
-    setSessions([...sessions, newSession]);
+
+    setSessions((prev) => [...prev, newSession]);
     router.push(`/chat/${newSession.id}`);
   };
 
@@ -58,6 +59,18 @@ export default function ChatSessionPage() {
       content,
       timestamp: new Date(),
     };
+
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.id === sessionId && s.subject === "New chat"
+          ? {
+              ...s,
+              subject:
+                content.length > 32 ? content.slice(0, 32) + "…" : content,
+            }
+          : s
+      )
+    );
 
     // Optimistic UI update (user message immediately)
     const sessionMessages = messages[sessionId] || [];
@@ -98,11 +111,16 @@ export default function ChatSessionPage() {
         sources: (data.sources || []).map((src: any, index: number) => ({
           id: `${sessionId}-src-${index}`,
           fileName: src.fileName || src.doc_name || "Unknown",
-          title: (src.title || src.fileName || src.doc_name || "Document").replace(".pdf", ""),
+          title: (
+            src.title ||
+            src.fileName ||
+            src.doc_name ||
+            "Document"
+          ).replace(".pdf", ""),
           pageNumber: src.pageNumber || src.page,
           relevance: src.relevance || 0.85,
           excerpt: src.excerpt || src.text || "",
-          filePath: src.filePath || src.source_path || ""
+          filePath: src.filePath || src.source_path || "",
         })),
       };
 
@@ -156,7 +174,7 @@ export default function ChatSessionPage() {
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
       <div className="flex-1 flex overflow-hidden min-w-0">
-        <div 
+        <div
           className="flex flex-col overflow-hidden"
           style={{ width: selectedSource ? `${chatWidth}%` : "100%" }}
         >
@@ -204,7 +222,7 @@ export default function ChatSessionPage() {
                 document.addEventListener("mouseup", handleMouseUp);
               }}
             />
-            <div 
+            <div
               className="flex flex-col overflow-hidden"
               style={{ width: `${100 - chatWidth}%` }}
             >
