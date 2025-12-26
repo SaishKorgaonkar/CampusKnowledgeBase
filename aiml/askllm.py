@@ -70,7 +70,7 @@ TONE:
 - Exam-oriented
 - No unnecessary jargon unless explained
 
-Context:
+RAG Search:
 ---
 {context}
 
