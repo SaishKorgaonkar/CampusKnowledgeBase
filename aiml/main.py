@@ -31,10 +31,19 @@ def create_app():
         SESSION_TYPE="filesystem"
     )
     
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    allowed_origins = [
+        frontend_url,
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+    
     # Enable CORS
     CORS(app, supports_credentials=True, resources={
         r"/*": {
-            "origins": os.getenv("FRONTEND_URL", "http://localhost:3000"),
+            "origins": allowed_origins,
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"],
         }
     })
 
