@@ -9,6 +9,7 @@ import { Session, Message, Source } from "@/types/chat";
 import { mockSessions } from "@/lib/mockData";
 import { useSemester } from "@/contexts/SemesterContext";
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000"
 // Load PDFViewerPanel only on client-side to avoid SSR issues with DOMMatrix
 const PDFViewerPanel = dynamic(
   () => import("@/components/chat/PDFViewerPanel"),
@@ -95,7 +96,7 @@ export default function ChatSessionPage() {
 
     try {
       const token = localStorage.getItem("auth_token");
-      const res = await fetch("http://localhost:8000/ask", {
+      const res = await fetch(`${BACKEND_URL}/ask`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
